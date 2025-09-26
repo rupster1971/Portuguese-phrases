@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gyroscope Ball Debug</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    background: #222;
+    font-family: sans-serif;
+    color: white;
+  }
+  canvas {
+    display: block;
+    background: #eee;
+  }
+  #startButton {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 40px;
+    font-size: 24px;
+    cursor: pointer;
+    border: none;
+    border-radius: 12px;
+    background: #f55;
+    color: white;
+    z-index: 10;
+  }
+  #debug {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<button id="startButton">Start Game</button>
+<div id="debug">
+  Gamma: 0<br>
+  Beta: 0
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const debugDiv = document.getElementById('debug');
+
+// Canvas size
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Ball properties
+const ball = { x: canvas.width/2, y: canvas.height/2, radius: 30, vx: 0, vy: 0 };
+let tiltX = 0, tiltY = 0;
+
+// Draw ball
+function drawBall() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+  ctx.fillStyle = "red";
+  ctx.fill();
+  ctx.closePath();
+}
+
+// Update ball physics
+function update() {
+  const acceleration = 0.5;
+  const friction = 0.95;
+
+  ball.vx += tiltX * acceleration;
+  ball.vy += tiltY * acceleration;
+
+  ball.vx *= friction;
+  ball.vy *= friction;
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Keep ball inside canvas
+  ball.x = Math.min(Math.max(ball.radius, ball.x), canvas.width - ball.radius);
+  ball.y = Math.min(Math.max(ball.radius, ball.y), canvas.height - ball.radius);
+
+  drawBall();
+  requestAnimationFrame(update);
+}
+
+// Handle device orientation
+function handleOrientation(event) {
+  tiltX = (event.gamma || 0) / 10;
+  tiltY = (event.beta || 0) / 10;
+
+  // Update debug overlay
+  debugDiv.innerHTML = `Gamma: ${(event.gamma || 0).toFixed(2)}<br>Beta: ${(event.beta || 0).toFixed(2)}`;
+}
+
+// Start button
+const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', async () => {
+  startButton.style.display = 'none';
+
+  // Set canvas size after user interaction
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  ball.x = canvas.width/2;
+  ball.y = canvas.height/2;
+
+  // Request motion permission (iOS)
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const response = await DeviceOrientationEvent.requestPermission();
+      if (response === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation);
